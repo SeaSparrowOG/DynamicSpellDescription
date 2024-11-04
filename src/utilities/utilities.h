@@ -75,7 +75,6 @@ namespace Utilities
 
 	namespace String
 	{
-
 		// Credit: https://github.com/powerof3/CLibUtil
 		inline std::vector<std::string> split(const std::string& a_str, std::string_view a_delimiter)
 		{

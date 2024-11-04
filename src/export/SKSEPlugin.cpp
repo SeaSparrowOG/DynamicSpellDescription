@@ -1,4 +1,5 @@
 #include "hooks/hooks.h"
+#include "settings/settings.h"
 
 namespace
 {
@@ -63,6 +64,7 @@ static void MessageEventCallback(SKSE::MessagingInterface::Message* a_msg)
 {
 	switch (a_msg->type) {
 	case SKSE::MessagingInterface::kDataLoaded:
+		Settings::Read();
 		break;
 	default:
 		break;
