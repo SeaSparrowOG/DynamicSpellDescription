@@ -2,7 +2,7 @@
 
 #include "RE/misc.h"
 #include "utilities/utilities.h"
-
+#include "hooks/hooks.h"
 
 namespace {
 	union VOID_PARAM
@@ -42,7 +42,7 @@ namespace {
 			return;
 		}
 
-		const auto descriptionField = description.asString();
+		auto descriptionField = description.asString();
 		const auto spellField = spell.asString();
 		if (descriptionField.empty() || spellField.empty()) {
 			logger::warn("  >Failed to parse description and/or spell fields. Entry will be skipped.");
@@ -61,7 +61,8 @@ namespace {
 			return;
 		}
 
-		auto newBaseEffect = RE::CreateEffectSetting();
+		auto* factory = RE::IFormFactory::GetConcreteFormFactoryByType<RE::EffectSetting>();
+		auto newBaseEffect = factory->Create();
 		if (!newBaseEffect) {
 			logger::error("  >Failed to create new base effect for spell {}. While not fatal, this could indicate a bug or instability.", spellField);
 			return;
@@ -101,61 +102,57 @@ namespace {
 				logger::critical("PLAYER SINGLETON NOT FOUND - YOU WILL LIKELY CRASH!");
 				return;
 			}
-			const auto playerHandle = player->GetHandle();
-			auto newCondition = RE::TESCondition();
+
 			for (auto perk : requiredPerks) {
 				auto newConditionItem = new RE::TESConditionItem();
 
-				newConditionItem->data.comparisonValue.f = 1.0f;
-				newConditionItem->data.flags.isOR = false;
-				newConditionItem->data.flags.global = false;
-				newConditionItem->data.flags.opCode = RE::CONDITION_ITEM_DATA::OpCode::kEqualTo;
-				newConditionItem->data.flags.swapTarget = false;
-				newConditionItem->data.flags.usePackData = false;
-				newConditionItem->data.flags.usesAliases = false;
+				RE::CONDITION_ITEM_DATA condData{};
 
-				newConditionItem->data.object.set(RE::CONDITIONITEMOBJECT::kRef);
-				newConditionItem->data.runOnRef = playerHandle;
-
-				newConditionItem->data.functionData.function.set(RE::FUNCTION_DATA::FunctionID::kHasPerk);
+				const auto ref = player->AsReference();
+				condData.runOnRef = ref->CreateRefHandle();
+				condData.object = RE::CONDITIONITEMOBJECT::kSelf;
 
 				PARAMS paramPair = { PARAM_TYPE::kPerk, PARAM_TYPE::kInt };
 				auto& [param1Type, param2Type] = paramPair;
-				// param1
 				if (param2Type) {
 					VOID_PARAM param{};
 					param.i = (int32_t)1;
-					newConditionItem->data.functionData.params[1] = std::bit_cast<void*>(param);
+					condData.functionData.params[1] = std::bit_cast<void*>(param);
 				}
-				// param2
 				if (param1Type) {
 					VOID_PARAM param{};
-					param.ptr = perk->As<RE::TESForm>();
-					newConditionItem->data.functionData.params[0] = std::bit_cast<void*>(param);
+					param.ptr = perk;
+					condData.functionData.params[0] = std::bit_cast<void*>(param);
 				}
-				newConditionItem->data.functionData.params;
-				if (!newCondition.head) {
-					newCondition.head = newConditionItem;
-					newConditionItem->next = nullptr;
+
+				condData.flags.opCode = RE::CONDITION_ITEM_DATA::OpCode::kEqualTo;
+				condData.functionData.function = RE::FUNCTION_DATA::FunctionID::kHasPerk;
+				condData.comparisonValue.f = 1.0f;
+				condData.flags.isOR = false;
+
+				newConditionItem->data = condData;
+				newConditionItem->next = nullptr;
+
+				auto* tail = newBaseEffect->conditions.head;
+				while (tail && tail->next) {
+					tail = tail->next;
+				}
+
+				if (tail) {
+					logger::debug("Set head condition");
+					tail->next = newConditionItem;
 				}
 				else {
-					auto head = newCondition.head;
-					while (head && head->next) {
-						head = head->next;
-					}
-
-					head->next = newConditionItem;
-					newConditionItem->next = nullptr;
+					logger::debug("Set tail condition");
+					newBaseEffect->conditions.head = newConditionItem;
 				}
+				newConditionItem->next = nullptr;
 			}
-
-			newBaseEffect->conditions = newCondition;
 		}
 
 		newBaseEffect->data.archetype = RE::EffectSetting::Archetype::kScript;
 		newBaseEffect->data.delivery = frontEffect->data.delivery;
 		newBaseEffect->data.castingType = frontEffect->data.castingType;
-		newBaseEffect->magicItemDescription = "newDescription";
 
 		newEffect->baseEffect = newBaseEffect;
 		newEffect->cost = 0.0f;
@@ -163,6 +160,8 @@ namespace {
 		newEffect->effectItem.duration = 0;
 		newEffect->effectItem.magnitude = 0.0f;
 		spellForm->effects.push_back(newEffect);
+
+		Hooks::SpellItemDescription::GetSingleton()->RegisterNewEffectDescription(newBaseEffect, descriptionField);
 	}
 }
 

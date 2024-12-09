@@ -5,7 +5,7 @@
 namespace Hooks {
 	void Install();
 
-	class SpellItemDescription : Utilities::Singleton::ISingleton<SpellItemDescription> 
+	class SpellItemDescription : public Utilities::Singleton::ISingleton<SpellItemDescription> 
 	{
 	public:
 		static void Install() {
@@ -15,6 +15,8 @@ namespace Hooks {
 			_getSpellDescription = trampoline.write_call<5>(target.address(), GetSpellDescription);
 		}
 
+		void RegisterNewEffectDescription(RE::EffectSetting* a_effect, std::string& a_newDescription);
+
 	private:
 		static void GetSpellDescription(RE::ItemCard* a1, RE::SpellItem* a2, RE::BSString& a_out);
 		inline static REL::Relocation<decltype(SpellItemDescription::GetSpellDescription)> _getSpellDescription;
@@ -23,6 +25,8 @@ namespace Hooks {
 		bool ShouldSelfTargetEffectApply(RE::EffectSetting* a_baseEffect);
 		bool ShouldOtherTargetEffectApply(RE::EffectSetting* a_baseEffect);
 		std::string GetFormattedEffectDescription(RE::EffectSetting* a_baseEffect, RE::Effect* a_effect);
+		
+		std::unordered_map<RE::EffectSetting*, std::string> specialEffects{};
 
 		std::string_view openingTag{ "<font face=\'$EverywhereMediumFont\' size=\'20\' color=\'#FFFFFF\'>" };
 		std::string_view closingTag{ "</font>" };
