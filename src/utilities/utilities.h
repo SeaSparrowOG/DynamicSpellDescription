@@ -76,10 +76,19 @@ namespace Utilities
 	namespace String
 	{
 		// Credit: https://github.com/powerof3/CLibUtil
-		inline std::vector<std::string> split(const std::string& a_str, std::string_view a_delimiter)
-		{
-			auto range = a_str | std::ranges::views::split(a_delimiter) | std::ranges::views::transform([](auto&& r) { return std::string_view(r); });
-			return { range.begin(), range.end() };
+		inline std::vector<std::string> split(const std::string& a_str, const std::string& a_delimiter) {
+			std::vector<std::string> result;
+			size_t start = 0;
+			size_t end = a_str.find(a_delimiter);
+
+			while (end != std::string::npos) {
+				result.push_back(a_str.substr(start, end - start));
+				start = end + a_delimiter.length();
+				end = a_str.find(a_delimiter, start);
+			}
+
+			result.push_back(a_str.substr(start));
+			return result;
 		}
 
 		inline bool is_only_hex(std::string_view a_str, bool a_requirePrefix = true)

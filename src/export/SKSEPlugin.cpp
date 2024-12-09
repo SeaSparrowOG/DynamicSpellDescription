@@ -1,5 +1,4 @@
 #include "hooks/hooks.h"
-#include "settings/settings.h"
 
 namespace
 {
@@ -64,7 +63,6 @@ static void MessageEventCallback(SKSE::MessagingInterface::Message* a_msg)
 {
 	switch (a_msg->type) {
 	case SKSE::MessagingInterface::kDataLoaded:
-		Settings::Read();
 		break;
 	default:
 		break;
@@ -84,8 +82,8 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 		return false;
 	}
 
-	const auto messaging = SKSE::GetMessagingInterface();
-	messaging->RegisterListener(&MessageEventCallback);
+	//const auto messaging = SKSE::GetMessagingInterface();
+	//messaging->RegisterListener(&MessageEventCallback);
 
 	Hooks::Install();
 	return true;
