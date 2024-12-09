@@ -22,7 +22,6 @@ namespace Hooks {
 			return;
 		}
 
-		logger::debug("Evaluating {}", a2->GetName());
 		std::string newDescription = "";
 		for (const auto effect : a2->effects) {
 			if (const auto baseEffect = effect->baseEffect; 
@@ -33,22 +32,18 @@ namespace Hooks {
 				if (baseEffect->data.delivery != delivery::kSelf) {
 					if (!singleton->ShouldIgnoreSelfCondtions(baseEffect->conditions)
 						&& !effect->conditions.IsTrue(player, player)) {
-						logger::debug("  >Effect {} does not meet requirements.", baseEffect->GetName());
 						continue;
 					}
 					if (!singleton->ShouldOtherTargetEffectApply(baseEffect)) {
-						logger::debug("  >Effect {} does not apply.", baseEffect->GetName());
 						continue;
 					}
 				}
 				else {
 					if (!effect->conditions.IsTrue(player, player)
 						&& !singleton->ShouldIgnoreSelfCondtions(effect->conditions)) {
-						logger::debug("  >Effect {} does not meet requirements.", baseEffect->GetName());
 						continue;
 					}
 					else if (!singleton->ShouldOtherTargetEffectApply(baseEffect)) {
-						logger::debug("  >Effect {} does not apply.", baseEffect->GetName());
 						continue;
 					}
 				}
