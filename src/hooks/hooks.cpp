@@ -80,10 +80,11 @@ namespace Hooks {
 		const auto archetype = baseEffect->data.archetype;
 		const auto delivery = baseEffect->data.delivery;
 		auto params = RE::ConditionCheckParams(player, player);
-		
-		bool matchedOR = false;
-		bool hasOR = false;
 		auto condHead = a_effect->conditions.head;
+
+		// OR into AND is different from AND into OR. This will somewhat
+		//emulate it. I hope. I am not REing how Bethesda made it work.
+		bool matchedOR = false;
 
 		//The following archetypes apply only to the target. Things like Summon
 		//affect the CASTER, and thus we cannot use delivery to determine if the
@@ -123,8 +124,7 @@ namespace Hooks {
 
 		while (condHead) {
 			if (!checkAllConditions) {
-				if (!(condHead->data.flags.swapTarget
-					&& condHead->data.object.any(RE::CONDITIONITEMOBJECT::kTarget))
+				if (!(condHead->data.object.any(RE::CONDITIONITEMOBJECT::kTarget))
 					&& condHead->data.runOnRef.get().get() != player->AsReference()) {
 					condHead = condHead->next;
 					continue;
@@ -144,7 +144,6 @@ namespace Hooks {
 				funcID::kGetVMScriptVariable,
 				funcID::kHasPerk)) {
 				if (condHead->data.flags.isOR) {
-					hasOR = true;
 					if (!condHead->IsTrue(params)) {
 						condHead = condHead->next;
 						continue;
@@ -152,26 +151,20 @@ namespace Hooks {
 					matchedOR = true;
 				}
 				else {
-					if (!condHead->IsTrue(params)) {
+					if (!matchedOR && !condHead->IsTrue(params)) {
 						return false;
 					}
+					matchedOR = false;
 				}
 			}
 			condHead = condHead->next;
 		}
 
-		if (hasOR && !matchedOR) {
-			return false;
-		}
-		
 		matchedOR = false;
-		hasOR = false;
 		auto effectHead = baseEffect->conditions.head;
-
 		while (effectHead) {
 			if (!checkAllConditions) {
-				if (!(effectHead->data.flags.swapTarget
-					&& effectHead->data.object.any(RE::CONDITIONITEMOBJECT::kTarget))
+				if (!effectHead->data.object.any(RE::CONDITIONITEMOBJECT::kTarget)
 					&& effectHead->data.runOnRef.get().get() != player->AsReference()) {
 					effectHead = effectHead->next;
 					continue;
@@ -191,7 +184,6 @@ namespace Hooks {
 				funcID::kGetVMScriptVariable,
 				funcID::kHasPerk)) {
 				if (effectHead->data.flags.isOR) {
-					hasOR = true;
 					if (!effectHead->IsTrue(params)) {
 						effectHead = effectHead->next;
 						continue;
@@ -199,16 +191,13 @@ namespace Hooks {
 					matchedOR = true;
 				}
 				else {
-					if (!effectHead->IsTrue(params)) {
+					if (!matchedOR && !effectHead->IsTrue(params)) {
 						return false;
 					}
+					matchedOR = false;
 				}
 			}
 			effectHead = effectHead->next;
-		}
-
-		if (hasOR && !matchedOR) {
-			return false;
 		}
 		return true;
 	}
