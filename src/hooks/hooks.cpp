@@ -82,7 +82,7 @@ namespace Hooks {
 		auto params = RE::ConditionCheckParams(player, player);
 		auto condHead = a_effect->conditions.head;
 
-		// OR into AND is different from AND into OR. This will somewhat
+		//OR into AND is different from AND into OR. This will somewhat
 		//emulate it. I hope. I am not REing how Bethesda made it work.
 		bool matchedOR = false;
 
@@ -130,32 +130,43 @@ namespace Hooks {
 					continue;
 				}
 			}
-			if (condHead->data.functionData.function.any(
-				funcID::kGetBaseActorValue,
-				funcID::kGetIsPlayableRace,
-				funcID::kGetIsRace,
-				funcID::kGetIsSex,
-				funcID::kGetLevel,
-				funcID::kGetQuestCompleted,
-				funcID::kGetQuestRunning,
-				funcID::kGetStageDone,
-				funcID::kGetStage,
-				funcID::kGetVMQuestVariable,
-				funcID::kGetVMScriptVariable,
-				funcID::kHasPerk)) {
-				if (condHead->data.flags.isOR) {
-					if (!condHead->IsTrue(params)) {
-						condHead = condHead->next;
-						continue;
-					}
-					matchedOR = true;
+
+			bool unneededOperation = true;
+			switch (condHead->data.functionData.function.get()) {
+			case funcID::kGetBaseActorValue:
+			case funcID::kGetIsPlayableRace:
+			case funcID::kGetIsRace:
+			case funcID::kGetIsSex:
+			case funcID::kGetLevel:
+			case funcID::kGetQuestCompleted:
+			case funcID::kGetQuestRunning:
+			case funcID::kGetStageDone:
+			case funcID::kGetStage:
+			case funcID::kGetVMQuestVariable:
+			case funcID::kGetVMScriptVariable:
+			case funcID::kHasPerk:
+				unneededOperation = false;
+				break;
+			default:
+				break;
+			}
+			if (unneededOperation) {
+				condHead = condHead->next;
+				continue;
+			}
+
+			if (condHead->data.flags.isOR) {
+				if (!condHead->IsTrue(params)) {
+					condHead = condHead->next;
+					continue;
 				}
-				else {
-					if (!matchedOR && !condHead->IsTrue(params)) {
-						return false;
-					}
-					matchedOR = false;
+				matchedOR = true;
+			}
+			else {
+				if (!matchedOR && !condHead->IsTrue(params)) {
+					return false;
 				}
+				matchedOR = false;
 			}
 			condHead = condHead->next;
 		}
@@ -170,32 +181,43 @@ namespace Hooks {
 					continue;
 				}
 			}
-			if (effectHead->data.functionData.function.any(
-				funcID::kGetBaseActorValue,
-				funcID::kGetIsPlayableRace,
-				funcID::kGetIsRace,
-				funcID::kGetIsSex,
-				funcID::kGetLevel,
-				funcID::kGetQuestCompleted,
-				funcID::kGetQuestRunning,
-				funcID::kGetStageDone,
-				funcID::kGetStage,
-				funcID::kGetVMQuestVariable,
-				funcID::kGetVMScriptVariable,
-				funcID::kHasPerk)) {
-				if (effectHead->data.flags.isOR) {
-					if (!effectHead->IsTrue(params)) {
-						effectHead = effectHead->next;
-						continue;
-					}
-					matchedOR = true;
+
+			bool unneededOperation = true;
+			switch (effectHead->data.functionData.function.get()) {
+			case funcID::kGetBaseActorValue:
+			case funcID::kGetIsPlayableRace:
+			case funcID::kGetIsRace:
+			case funcID::kGetIsSex:
+			case funcID::kGetLevel:
+			case funcID::kGetQuestCompleted:
+			case funcID::kGetQuestRunning:
+			case funcID::kGetStageDone:
+			case funcID::kGetStage:
+			case funcID::kGetVMQuestVariable:
+			case funcID::kGetVMScriptVariable:
+			case funcID::kHasPerk:
+				unneededOperation = false;
+				break;
+			default:
+				break;
+			}
+			if (unneededOperation) {
+				effectHead = effectHead->next;
+				continue;
+			}
+			
+			if (effectHead->data.flags.isOR) {
+				if (!effectHead->IsTrue(params)) {
+					effectHead = effectHead->next;
+					continue;
 				}
-				else {
-					if (!matchedOR && !effectHead->IsTrue(params)) {
-						return false;
-					}
-					matchedOR = false;
+				matchedOR = true;
+			}
+			else {
+				if (!matchedOR && !effectHead->IsTrue(params)) {
+					return false;
 				}
+				matchedOR = false;
 			}
 			effectHead = effectHead->next;
 		}
