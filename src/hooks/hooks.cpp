@@ -53,53 +53,16 @@ namespace Hooks {
 
 		std::string newDescription = "";
 		for (const auto effect : a2->effects) {
-			if (effect->baseEffect
-				&& singleton->specialEffects.contains(effect->baseEffect)) {
-				const auto baseEffect = effect->baseEffect;
-				if (baseEffect->data.delivery != delivery::kSelf) {
-					if (!singleton->ShouldIgnoreSelfCondtions(baseEffect->conditions)
-						&& !effect->conditions.IsTrue(player, player)) {
-						continue;
-					}
-					if (!singleton->ShouldSelfTargetEffectApply(baseEffect)) {
-						continue;
-					}
-				}
-				else {
-					if (!effect->conditions.IsTrue(player, player)
-						&& !singleton->ShouldIgnoreSelfCondtions(effect->conditions)) {
-						continue;
-					}
-					else if (!singleton->ShouldOtherTargetEffectApply(baseEffect)) {
-						continue;
-					}
-				}
-				newDescription += singleton->specialEffects[baseEffect];
+			const auto baseEffect = effect ? effect->baseEffect : nullptr;
+			if (!baseEffect) {
+				continue;
 			}
-			else if (const auto baseEffect = effect->baseEffect; 
-				baseEffect 
-				&& !baseEffect->data.flags.any(RE::EffectSetting::EffectSettingData::Flag::kHideInUI)
-				&& !baseEffect->magicItemDescription.empty()) {
-
-				if (baseEffect->data.delivery != delivery::kSelf) {
-					if (!singleton->ShouldIgnoreSelfCondtions(baseEffect->conditions)
-						&& !effect->conditions.IsTrue(player, player)) {
-						continue;
-					}
-					if (!singleton->ShouldOtherTargetEffectApply(baseEffect)) {
-						continue;
-					}
-				}
-				else {
-					if (!effect->conditions.IsTrue(player, player)
-						&& !singleton->ShouldIgnoreSelfCondtions(effect->conditions)) {
-						continue;
-					}
-					else if (!singleton->ShouldOtherTargetEffectApply(baseEffect)) {
-						continue;
-					}
-				}
-				newDescription += singleton->GetFormattedEffectDescription(baseEffect, effect);
+			if (baseEffect->data.flags.any(RE::EffectSetting::EffectSettingData::Flag::kHideInUI)) {
+				continue;
+			}
+			
+			if (singleton->IsEffectValid(effect)) {
+				newDescription += singleton->GetFormattedEffectDescription(effect);
 			}
 		}
 
@@ -109,16 +72,65 @@ namespace Hooks {
 		a_out = newDescription;
 	}
 
-	bool SpellItemDescription::ShouldIgnoreSelfCondtions(const RE::TESCondition& a_condition)
+	bool SpellItemDescription::IsEffectValid(RE::Effect* a_effect)
 	{
 		using funcID = RE::FUNCTION_DATA::FunctionID;
-		if (!a_condition.head) {
-			return true;
+		const auto player = RE::PlayerCharacter::GetSingleton(); //Maybe pass that in as an argument?
+		const auto baseEffect = a_effect->baseEffect;
+		const auto archetype = baseEffect->data.archetype;
+		const auto delivery = baseEffect->data.delivery;
+		auto params = RE::ConditionCheckParams(player, player);
+		
+		bool matchedOR = false;
+		bool hasOR = false;
+		auto condHead = a_effect->conditions.head;
+
+		//The following archetypes apply only to the target. Things like Summon
+		//affect the CASTER, and thus we cannot use delivery to determine if the
+		//condition should be skipped.
+		bool checkAllConditions = true;
+		if (delivery != RE::MagicSystem::Delivery::kSelf) {
+			switch (archetype) {
+			case RE::EffectSetting::Archetype::kAbsorb:
+			case RE::EffectSetting::Archetype::kBanish:
+			case RE::EffectSetting::Archetype::kCalm:
+			case RE::EffectSetting::Archetype::kConcussion:
+			case RE::EffectSetting::Archetype::kDemoralize:
+			case RE::EffectSetting::Archetype::kDisarm:
+			case RE::EffectSetting::Archetype::kDualValueModifier:
+			case RE::EffectSetting::Archetype::kEtherealize:
+			case RE::EffectSetting::Archetype::kFrenzy:
+			case RE::EffectSetting::Archetype::kGrabActor:
+			case RE::EffectSetting::Archetype::kInvisibility:
+			case RE::EffectSetting::Archetype::kLight:
+			case RE::EffectSetting::Archetype::kLock:
+			case RE::EffectSetting::Archetype::kOpen:
+			case RE::EffectSetting::Archetype::kParalysis:
+			case RE::EffectSetting::Archetype::kPeakValueModifier:
+			case RE::EffectSetting::Archetype::kRally:
+			case RE::EffectSetting::Archetype::kSoulTrap:
+			case RE::EffectSetting::Archetype::kStagger:
+			case RE::EffectSetting::Archetype::kTelekinesis:
+			case RE::EffectSetting::Archetype::kTurnUndead:
+			case RE::EffectSetting::Archetype::kValueAndParts:
+			case RE::EffectSetting::Archetype::kValueModifier:
+				checkAllConditions = false;
+				break;
+			default:
+				break;
+			}
 		}
 
-		auto head = a_condition.head;
-		while (head) {
-			if (head->data.functionData.function.any(
+		while (condHead) {
+			if (!checkAllConditions) {
+				if (!(condHead->data.flags.swapTarget
+					&& condHead->data.object.any(RE::CONDITIONITEMOBJECT::kTarget))
+					&& condHead->data.runOnRef.get().get() != player->AsReference()) {
+					condHead = condHead->next;
+					continue;
+				}
+			}
+			if (condHead->data.functionData.function.any(
 				funcID::kGetBaseActorValue,
 				funcID::kGetIsPlayableRace,
 				funcID::kGetIsRace,
@@ -130,51 +142,42 @@ namespace Hooks {
 				funcID::kGetStage,
 				funcID::kGetVMQuestVariable,
 				funcID::kGetVMScriptVariable,
-				funcID::kHasPerk
-			)) {
-				return false;
+				funcID::kHasPerk)) {
+				if (condHead->data.flags.isOR) {
+					hasOR = true;
+					if (!condHead->IsTrue(params)) {
+						condHead = condHead->next;
+						continue;
+					}
+					matchedOR = true;
+				}
+				else {
+					if (!condHead->IsTrue(params)) {
+						return false;
+					}
+				}
 			}
-			head = head->next;
-		}
-		return true;
-	}
-
-	bool SpellItemDescription::ShouldSelfTargetEffectApply(RE::EffectSetting* a_baseEffect)
-	{
-		auto head = a_baseEffect->conditions.head;
-		if (!head) {
-			return true;
+			condHead = condHead->next;
 		}
 
-		const auto player = RE::PlayerCharacter::GetSingleton();
-		if (a_baseEffect->conditions.IsTrue(player, player)) {
-			return true;
+		if (hasOR && !matchedOR) {
+			return false;
 		}
-		else if (ShouldIgnoreSelfCondtions(a_baseEffect->conditions)) {
-			return true;
-		}
-		return false;
-	}
+		
+		matchedOR = false;
+		hasOR = false;
+		auto effectHead = baseEffect->conditions.head;
 
-	bool SpellItemDescription::ShouldOtherTargetEffectApply(RE::EffectSetting* a_baseEffect)
-	{
-		using funcID = RE::FUNCTION_DATA::FunctionID;
-		auto head = a_baseEffect->conditions.head;
-		if (!head) {
-			return true;
-		}
-
-		const auto player = RE::PlayerCharacter::GetSingleton();
-		if (a_baseEffect->conditions.IsTrue(player, player)) {
-			return true;
-		}
-		else if (ShouldIgnoreSelfCondtions(a_baseEffect->conditions)) {
-			return true;
-		}
-
-		auto parametersToCheck = RE::ConditionCheckParams(player, player);
-		while (head) {
-			if (!head->data.functionData.function.any(
+		while (effectHead) {
+			if (!checkAllConditions) {
+				if (!(effectHead->data.flags.swapTarget
+					&& effectHead->data.object.any(RE::CONDITIONITEMOBJECT::kTarget))
+					&& effectHead->data.runOnRef.get().get() != player->AsReference()) {
+					effectHead = effectHead->next;
+					continue;
+				}
+			}
+			if (effectHead->data.functionData.function.any(
 				funcID::kGetBaseActorValue,
 				funcID::kGetIsPlayableRace,
 				funcID::kGetIsRace,
@@ -186,32 +189,38 @@ namespace Hooks {
 				funcID::kGetStage,
 				funcID::kGetVMQuestVariable,
 				funcID::kGetVMScriptVariable,
-				funcID::kHasPerk
-			)) {
-				head = head->next;
-				continue;
+				funcID::kHasPerk)) {
+				if (effectHead->data.flags.isOR) {
+					hasOR = true;
+					if (!effectHead->IsTrue(params)) {
+						effectHead = effectHead->next;
+						continue;
+					}
+					matchedOR = true;
+				}
+				else {
+					if (!effectHead->IsTrue(params)) {
+						return false;
+					}
+				}
 			}
-			if (head->IsTrue(parametersToCheck)) {
-				head = head->next;
-				continue;
-			}
-			if (head->data.flags.swapTarget
-				&& head->data.object.any(RE::CONDITIONITEMOBJECT::kTarget)) {
-				head = head->next;
-				continue;
-			}
-			if (head->data.runOnRef.get().get() != player->AsReference()) {
-				head = head->next;
-				continue;
-			}
+			effectHead = effectHead->next;
+		}
+
+		if (hasOR && !matchedOR) {
 			return false;
 		}
 		return true;
 	}
 
-	std::string SpellItemDescription::GetFormattedEffectDescription(RE::EffectSetting* a_baseEffect, RE::Effect* a_effect)
+	std::string SpellItemDescription::GetFormattedEffectDescription(RE::Effect* a_effect)
 	{
-		std::string originalDescription = a_baseEffect->magicItemDescription.c_str();
+		const auto baseEffect = a_effect->baseEffect;
+		if (specialEffects.contains(baseEffect)) {
+			return specialEffects[baseEffect];
+		}
+
+		std::string originalDescription = baseEffect->magicItemDescription.c_str();
 		if (originalDescription.empty()) {
 			return originalDescription;
 		}

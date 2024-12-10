@@ -21,10 +21,8 @@ namespace Hooks {
 		static void GetSpellDescription(RE::ItemCard* a1, RE::SpellItem* a2, RE::BSString& a_out);
 		inline static REL::Relocation<decltype(SpellItemDescription::GetSpellDescription)> _getSpellDescription;
 
-		bool ShouldIgnoreSelfCondtions(const RE::TESCondition& a_condition);
-		bool ShouldSelfTargetEffectApply(RE::EffectSetting* a_baseEffect);
-		bool ShouldOtherTargetEffectApply(RE::EffectSetting* a_baseEffect);
-		std::string GetFormattedEffectDescription(RE::EffectSetting* a_baseEffect, RE::Effect* a_effect);
+		bool IsEffectValid(RE::Effect* a_effect);
+		std::string GetFormattedEffectDescription(RE::Effect* a_effect);
 		
 		std::unordered_map<RE::EffectSetting*, std::string> specialEffects{};
 
