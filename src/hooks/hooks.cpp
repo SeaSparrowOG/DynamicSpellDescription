@@ -61,7 +61,7 @@ namespace Hooks {
 						&& !effect->conditions.IsTrue(player, player)) {
 						continue;
 					}
-					if (!singleton->ShouldOtherTargetEffectApply(baseEffect)) {
+					if (!singleton->ShouldSelfTargetEffectApply(baseEffect)) {
 						continue;
 					}
 				}

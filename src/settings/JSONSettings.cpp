@@ -27,6 +27,34 @@ namespace {
 		return jsonFilePaths;
 	}
 
+	static void ProcessEffect(const Json::Value& a_entry) {
+		const auto& effect = a_entry["effect"];
+		const auto& description = a_entry["description"];
+		if (!effect || !description) {
+			logger::warn("  >Missing effect and/or description field. Entry will be skipped.");
+			return;
+		}
+		if (!effect.isString() || !description.isString()) {
+			logger::warn("  >Effect and/or description fields are not strings. Entry will be skipped.");
+			return;
+		}
+
+		auto descriptionField = description.asString();
+		const auto effectField = effect.asString();
+		if (descriptionField.empty() || effectField.empty()) {
+			logger::warn("  >Failed to parse description and/or effect/description fields. Entry will be skipped.");
+			return;
+		}
+
+		auto effectForm = Utilities::Forms::GetFormFromString<RE::EffectSetting>(effectField);
+		if (!effectForm) {
+			logger::warn("  >Failed to resolve effect form for {}. Entry will be skipped.", effectField);
+			return;
+		}
+
+		effectForm->magicItemDescription = RE::BSFixedString(descriptionField);
+	}
+
 	static void ProcessEntry(const Json::Value& a_entry) {
 		using PARAM_TYPE = RE::SCRIPT_PARAM_TYPE;
 		using PARAMS = std::pair<std::optional<PARAM_TYPE>, std::optional<PARAM_TYPE>>;
@@ -205,17 +233,25 @@ namespace Settings::JSON
 			}
 
 			const auto& newEffects = JSONFile["newEffects"];
-			if (!newEffects) {
-				logger::warn("Missing newEffects field. Check spelling and capitalization!");
-				continue;
-			}
-			if (!newEffects.isArray()) {
+			if (newEffects && !newEffects.isArray()) {
 				logger::warn("newEffects field is present, but is not an array.");
 				continue;
 			}
+			else if (newEffects) {
+				for (const auto& effectEntry : newEffects) {
+					ProcessEntry(effectEntry);
+				}
+			}
 
-			for (const auto& effectEntry : newEffects) {
-				ProcessEntry(effectEntry);
+			const auto& newDescriptions = JSONFile["newDescriptions"];
+			if (newDescriptions && !newDescriptions.isArray()) {
+				logger::warn("newDescriptions field is present, but is not an array.");
+				continue;
+			}
+			else if (newDescriptions) {
+				for (const auto& descriptionEntry : newDescriptions) {
+					ProcessEffect(descriptionEntry);
+				}
 			}
 		}
 	}
