@@ -53,6 +53,7 @@ namespace {
 		}
 
 		effectForm->magicItemDescription = RE::BSFixedString(descriptionField);
+		effectForm->data.flags.reset(RE::EffectSetting::EffectSettingData::Flag::kHideInUI);
 	}
 
 	static void ProcessEntry(const Json::Value& a_entry) {
