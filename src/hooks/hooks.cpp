@@ -1,11 +1,12 @@
 #include "Hooks/hooks.h"
 
+#include "utilities/effectEvaluator.h"
+
 namespace Hooks {
 	void Install()
 	{
-		SKSE::AllocTrampoline(14);
+		SKSE::AllocTrampoline(42);
 		SpellItemDescription::Install();
-		logger::info("Wrote menu description hook.");
 	}
 
 	void SpellItemDescription::RegisterNewEffectDescription(RE::EffectSetting* a_effect, std::string& a_newDescription)
@@ -51,6 +52,15 @@ namespace Hooks {
 			return;
 		}
 
+		auto* frontEffect = a2->effects.front();
+		auto* frontBaseEffect = frontEffect ? frontEffect->baseEffect : nullptr;
+		if (!frontBaseEffect) {
+			logger::error("Failed to get the front effect of {}.", a2->GetName());
+			return;
+		}
+
+		auto params = RE::ConditionCheckParams(player, player);
+		bool checkAll = EffectEvaluator::ShouldCheckAllConditions(frontBaseEffect);
 		std::string newDescription = "";
 		for (const auto effect : a2->effects) {
 			const auto baseEffect = effect ? effect->baseEffect : nullptr;
@@ -61,7 +71,7 @@ namespace Hooks {
 				continue;
 			}
 			
-			if (singleton->IsEffectValid(effect)) {
+			if (EffectEvaluator::AreConditionsValid(effect, params, player, checkAll)) {
 				newDescription += singleton->GetFormattedEffectDescription(effect);
 			}
 		}
@@ -72,156 +82,24 @@ namespace Hooks {
 		a_out = newDescription;
 	}
 
-	bool SpellItemDescription::IsEffectValid(RE::Effect* a_effect)
+	RE::EffectSetting* SpellItemDescription::ProcessProjectile(RE::MagicItem* a_this)
 	{
-		using funcID = RE::FUNCTION_DATA::FunctionID;
-		const auto player = RE::PlayerCharacter::GetSingleton(); //Maybe pass that in as an argument?
-		const auto baseEffect = a_effect->baseEffect;
-		const auto archetype = baseEffect->data.archetype;
-		const auto delivery = baseEffect->data.delivery;
-		auto params = RE::ConditionCheckParams(player, player);
-		auto condHead = a_effect->conditions.head;
-
-		//OR into AND is different from AND into OR. This will somewhat
-		//emulate it. I hope. I am not REing how Bethesda made it work.
-		bool matchedOR = false;
-
-		//The following archetypes apply only to the target. Things like Summon
-		//affect the CASTER, and thus we cannot use delivery to determine if the
-		//condition should be skipped.
-		bool checkAllConditions = true;
-		if (delivery != RE::MagicSystem::Delivery::kSelf) {
-			switch (archetype) {
-			case RE::EffectSetting::Archetype::kAbsorb:
-			case RE::EffectSetting::Archetype::kBanish:
-			case RE::EffectSetting::Archetype::kCalm:
-			case RE::EffectSetting::Archetype::kConcussion:
-			case RE::EffectSetting::Archetype::kDemoralize:
-			case RE::EffectSetting::Archetype::kDisarm:
-			case RE::EffectSetting::Archetype::kDualValueModifier:
-			case RE::EffectSetting::Archetype::kEtherealize:
-			case RE::EffectSetting::Archetype::kFrenzy:
-			case RE::EffectSetting::Archetype::kGrabActor:
-			case RE::EffectSetting::Archetype::kInvisibility:
-			case RE::EffectSetting::Archetype::kLight:
-			case RE::EffectSetting::Archetype::kLock:
-			case RE::EffectSetting::Archetype::kOpen:
-			case RE::EffectSetting::Archetype::kParalysis:
-			case RE::EffectSetting::Archetype::kPeakValueModifier:
-			case RE::EffectSetting::Archetype::kRally:
-			case RE::EffectSetting::Archetype::kSoulTrap:
-			case RE::EffectSetting::Archetype::kStagger:
-			case RE::EffectSetting::Archetype::kTelekinesis:
-			case RE::EffectSetting::Archetype::kTurnUndead:
-			case RE::EffectSetting::Archetype::kValueAndParts:
-			case RE::EffectSetting::Archetype::kValueModifier:
-				checkAllConditions = false;
-				break;
-			default:
-				break;
-			}
+		auto response = _processProjectile(a_this);
+		if (!response || !response->data.projectileBase) {
+			return response;
 		}
 
-		while (condHead) {
-			if (!checkAllConditions) {
-				if (!(condHead->data.object.any(RE::CONDITIONITEMOBJECT::kTarget))
-					&& condHead->data.runOnRef.get().get() != player->AsReference()) {
-					condHead = condHead->next;
-					continue;
-				}
-			}
+		return EffectEvaluator::GetMostEffectValidEffect(a_this);
+	}
 
-			bool unneededOperation = true;
-			switch (condHead->data.functionData.function.get()) {
-			case funcID::kGetBaseActorValue:
-			case funcID::kGetIsPlayableRace:
-			case funcID::kGetIsRace:
-			case funcID::kGetIsSex:
-			case funcID::kGetLevel:
-			case funcID::kGetQuestCompleted:
-			case funcID::kGetQuestRunning:
-			case funcID::kGetStageDone:
-			case funcID::kGetStage:
-			case funcID::kGetVMQuestVariable:
-			case funcID::kGetVMScriptVariable:
-			case funcID::kHasPerk:
-				unneededOperation = false;
-				break;
-			default:
-				break;
-			}
-			if (unneededOperation) {
-				condHead = condHead->next;
-				continue;
-			}
-
-			if (condHead->data.flags.isOR) {
-				if (!condHead->IsTrue(params)) {
-					condHead = condHead->next;
-					continue;
-				}
-				matchedOR = true;
-			}
-			else {
-				if (!matchedOR && !condHead->IsTrue(params)) {
-					return false;
-				}
-				matchedOR = false;
-			}
-			condHead = condHead->next;
+	RE::EffectSetting* SpellItemDescription::ProcessImpact(RE::MagicItem* a_this)
+	{
+		auto response = _processProjectile(a_this);
+		if (!response || !response->data.projectileBase) {
+			return response;
 		}
 
-		matchedOR = false;
-		auto effectHead = baseEffect->conditions.head;
-		while (effectHead) {
-			if (!checkAllConditions) {
-				if (!effectHead->data.object.any(RE::CONDITIONITEMOBJECT::kTarget)
-					&& effectHead->data.runOnRef.get().get() != player->AsReference()) {
-					effectHead = effectHead->next;
-					continue;
-				}
-			}
-
-			bool unneededOperation = true;
-			switch (effectHead->data.functionData.function.get()) {
-			case funcID::kGetBaseActorValue:
-			case funcID::kGetIsPlayableRace:
-			case funcID::kGetIsRace:
-			case funcID::kGetIsSex:
-			case funcID::kGetLevel:
-			case funcID::kGetQuestCompleted:
-			case funcID::kGetQuestRunning:
-			case funcID::kGetStageDone:
-			case funcID::kGetStage:
-			case funcID::kGetVMQuestVariable:
-			case funcID::kGetVMScriptVariable:
-			case funcID::kHasPerk:
-				unneededOperation = false;
-				break;
-			default:
-				break;
-			}
-			if (unneededOperation) {
-				effectHead = effectHead->next;
-				continue;
-			}
-			
-			if (effectHead->data.flags.isOR) {
-				if (!effectHead->IsTrue(params)) {
-					effectHead = effectHead->next;
-					continue;
-				}
-				matchedOR = true;
-			}
-			else {
-				if (!matchedOR && !effectHead->IsTrue(params)) {
-					return false;
-				}
-				matchedOR = false;
-			}
-			effectHead = effectHead->next;
-		}
-		return true;
+		return EffectEvaluator::GetMostEffectValidEffect(a_this);
 	}
 
 	std::string SpellItemDescription::GetFormattedEffectDescription(RE::Effect* a_effect)
