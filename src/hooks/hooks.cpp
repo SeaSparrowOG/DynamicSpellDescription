@@ -5,7 +5,7 @@
 namespace Hooks {
 	void Install()
 	{
-		SKSE::AllocTrampoline(42);
+		SKSE::AllocTrampoline(70);
 		SpellItemDescription::Install();
 	}
 
@@ -40,8 +40,6 @@ namespace Hooks {
 
 	void SpellItemDescription::GetSpellDescription(RE::ItemCard* a1, RE::SpellItem* a2, RE::BSString& a_out)
 	{
-		using delivery = RE::MagicSystem::Delivery;
-		using conditionObject = RE::CONDITIONITEMOBJECT;
 		_getSpellDescription(a1, a2, a_out);
 
 		const auto player = RE::PlayerCharacter::GetSingleton();
@@ -71,6 +69,90 @@ namespace Hooks {
 				continue;
 			}
 			
+			if (EffectEvaluator::AreConditionsValid(effect, params, player, checkAll)) {
+				newDescription += singleton->GetFormattedEffectDescription(effect);
+			}
+		}
+
+		if (newDescription.empty()) {
+			return;
+		}
+		a_out = newDescription;
+	}
+
+	void SpellItemDescription::GetSpellTomeDescription(RE::ItemCard* a1, RE::SpellItem* a2, RE::BSString& a_out)
+	{
+		_getSpellTomeDescription(a1, a2, a_out);
+
+		const auto player = RE::PlayerCharacter::GetSingleton();
+		const auto singleton = SpellItemDescription::GetSingleton();
+		assert(player && singleton);
+		if (!player || !singleton) {
+			logger::error("Failed to get the player or SpellItemDescirptionSingleton. This will likely cause a crash later.");
+			return;
+		}
+
+		auto* frontEffect = a2->effects.front();
+		auto* frontBaseEffect = frontEffect ? frontEffect->baseEffect : nullptr;
+		if (!frontBaseEffect) {
+			logger::error("Failed to get the front effect of {}.", a2->GetName());
+			return;
+		}
+
+		auto params = RE::ConditionCheckParams(player, player);
+		bool checkAll = EffectEvaluator::ShouldCheckAllConditions(frontBaseEffect);
+		std::string newDescription = "";
+		for (const auto effect : a2->effects) {
+			const auto baseEffect = effect ? effect->baseEffect : nullptr;
+			if (!baseEffect) {
+				continue;
+			}
+			if (baseEffect->data.flags.any(RE::EffectSetting::EffectSettingData::Flag::kHideInUI)) {
+				continue;
+			}
+
+			if (EffectEvaluator::AreConditionsValid(effect, params, player, checkAll)) {
+				newDescription += singleton->GetFormattedEffectDescription(effect);
+			}
+		}
+
+		if (newDescription.empty()) {
+			return;
+		}
+		a_out = newDescription;
+	}
+
+	void SpellItemDescription::GetMagicWeaponDescription(RE::ItemCard* a1, RE::SpellItem* a2, RE::BSString& a_out)
+	{
+		_getMagicWeaponDescription(a1, a2, a_out);
+
+		const auto player = RE::PlayerCharacter::GetSingleton();
+		const auto singleton = SpellItemDescription::GetSingleton();
+		assert(player && singleton);
+		if (!player || !singleton) {
+			logger::error("Failed to get the player or SpellItemDescirptionSingleton. This will likely cause a crash later.");
+			return;
+		}
+
+		auto* frontEffect = a2->effects.front();
+		auto* frontBaseEffect = frontEffect ? frontEffect->baseEffect : nullptr;
+		if (!frontBaseEffect) {
+			logger::error("Failed to get the front effect of {}.", a2->GetName());
+			return;
+		}
+
+		auto params = RE::ConditionCheckParams(player, player);
+		bool checkAll = EffectEvaluator::ShouldCheckAllConditions(frontBaseEffect);
+		std::string newDescription = "";
+		for (const auto effect : a2->effects) {
+			const auto baseEffect = effect ? effect->baseEffect : nullptr;
+			if (!baseEffect) {
+				continue;
+			}
+			if (baseEffect->data.flags.any(RE::EffectSetting::EffectSettingData::Flag::kHideInUI)) {
+				continue;
+			}
+
 			if (EffectEvaluator::AreConditionsValid(effect, params, player, checkAll)) {
 				newDescription += singleton->GetFormattedEffectDescription(effect);
 			}
