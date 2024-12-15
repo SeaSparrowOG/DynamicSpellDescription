@@ -5,7 +5,7 @@ option(BUILD_TEST "Sets log level to debug." OFF)
 # -------- Project ----------
 project(
 	DynamicSpellDescription
-	VERSION 1.1.0
+	VERSION 1.1.1
 	LANGUAGES CXX
 )
 

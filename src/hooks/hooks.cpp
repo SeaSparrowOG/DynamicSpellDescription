@@ -176,8 +176,8 @@ namespace Hooks {
 
 	RE::EffectSetting* SpellItemDescription::ProcessImpact(RE::MagicItem* a_this)
 	{
-		auto response = _processProjectile(a_this);
-		if (!response || !response->data.projectileBase) {
+		auto response = _processImpact(a_this);
+		if (!response || !response->data.impactDataSet) {
 			return response;
 		}
 
