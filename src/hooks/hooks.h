@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utilities/utilities.h"
+#include "settings/INISettings.h"
 
 namespace Hooks {
 	void Install();
@@ -18,8 +19,13 @@ namespace Hooks {
 
 			auto& trampoline = SKSE::GetTrampoline();
 
-			_processProjectile = trampoline.write_call<5>(getProjectileTarget.address(), &ProcessProjectile);
-			_processImpact = trampoline.write_call<5>(getImpactDataTarget.address(), &ProcessImpact);
+			if (Settings::INI::INIHolder::GetSingleton()->ShouldInstallProjectilePatch()) {
+				_processProjectile = trampoline.write_call<5>(getProjectileTarget.address(), &ProcessProjectile);
+			}
+
+			if (Settings::INI::INIHolder::GetSingleton()->ShouldInstallImpactPatch()) {
+				_processImpact = trampoline.write_call<5>(getImpactDataTarget.address(), &ProcessImpact);
+			}
 
 			_getSpellDescription = trampoline.write_call<5>(getSpellDescriptionTarget.address(), GetSpellDescription);
 			_getSpellTomeDescription = trampoline.write_call<5>(getSpellTomeDescriptionTarget.address(), GetSpellTomeDescription);

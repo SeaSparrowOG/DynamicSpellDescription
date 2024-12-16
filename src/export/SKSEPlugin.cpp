@@ -1,5 +1,6 @@
 #include "hooks/hooks.h"
 #include "settings/JSONSettings.h"
+#include "settings/INISettings.h"
 
 namespace
 {
@@ -87,6 +88,7 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 	const auto messaging = SKSE::GetMessagingInterface();
 	messaging->RegisterListener(&MessageEventCallback);
 
+	Settings::INI::Read();
 	Hooks::Install();
 	return true;
 }
