@@ -60,6 +60,9 @@ namespace Hooks {
 		auto params = RE::ConditionCheckParams(player, player);
 		bool checkAll = EffectEvaluator::ShouldCheckAllConditions(frontBaseEffect);
 		std::string newDescription = "";
+		bool needsDot = false;
+		bool needsSpace = false;
+		bool needsSpaceDot = false;
 		for (const auto effect : a2->effects) {
 			const auto baseEffect = effect ? effect->baseEffect : nullptr;
 			if (!baseEffect) {
@@ -70,7 +73,54 @@ namespace Hooks {
 			}
 			
 			if (EffectEvaluator::AreConditionsValid(effect, params, player, checkAll)) {
-				newDescription += singleton->GetFormattedEffectDescription(effect);
+				auto proposed = singleton->GetFormattedEffectDescription(effect);
+				if (proposed.empty()) {
+					continue;
+				}
+
+				if (proposed.front() == ' ') {
+					needsSpace = false;
+					if (needsSpaceDot && proposed.size() > 1) {
+						if (proposed[2] == '.' || proposed[1] == '!' || proposed[1] == '?') {
+							needsSpaceDot = false;
+							needsDot = false;
+						}
+					}
+				}
+				else if (proposed.front() == '.' || proposed.front() == '!' || proposed.front() == '?') {
+					needsDot = false;
+					needsSpace = true;
+					needsSpaceDot = false;
+				}
+
+				if (needsDot) {
+					newDescription += ".";
+				}
+				else if (needsSpace) {
+					newDescription += " ";
+				}
+				else if (needsSpaceDot) {
+					newDescription += ". ";
+				}
+				needsDot = false;
+				needsSpace = false;
+				needsSpaceDot = true;
+
+				char back = proposed.back();
+				if (back == '.' || back == '!' || back == '?') {
+					needsDot = false;
+					needsSpace = true;
+					needsSpaceDot = false;
+				}
+				else if (back == ' ' && proposed.size() > 1) {
+					char secondBack = proposed[proposed.size() - 2];
+					if (secondBack == '.' || secondBack == '!' || secondBack == '?') {
+						needsDot = false;
+						needsSpace = true;
+						needsSpaceDot = false;
+					}
+				}
+				newDescription += proposed;
 			}
 		}
 
