@@ -4,6 +4,8 @@
 #include "utilities/utilities.h"
 #include "hooks/hooks.h"
 
+#undef ERROR
+
 namespace {
 	union VOID_PARAM
 	{
@@ -17,6 +19,10 @@ namespace {
 	{
 		static constexpr std::string_view directory = R"(Data/SKSE/Plugins/DynamicSpellDescription)";
 		std::vector<std::string> jsonFilePaths;
+
+		if (!std::filesystem::is_directory(directory)) {
+			return jsonFilePaths;
+		}
 		for (const auto& entry : std::filesystem::directory_iterator(directory)) {
 			if (entry.is_regular_file() && entry.path().extension() == ".json") {
 				jsonFilePaths.push_back(entry.path().string());
@@ -32,20 +38,20 @@ namespace {
 		using PARAMS = std::pair<std::optional<PARAM_TYPE>, std::optional<PARAM_TYPE>>;
 
 		if (!a_perkConditions.isArray()) {
-			logger::warn("  >Perks field exists, but is not an array. Entry will be skipped.");
+			REX::WARN("  >Perks field exists, but is not an array. Entry will be skipped.");
 			return false;
 		}
 		std::vector<RE::BGSPerk*> requiredPerks{};
 
 		for (const auto& entryPerk : a_perkConditions) {
 			if (!entryPerk.isString()) {
-				logger::warn("  >Found non-string element in Perk array. Entry will be ignored.");
+				REX::WARN("  >Found non-string element in Perk array. Entry will be ignored.");
 				return false;
 			}
 
 			const auto foundPerk = Utilities::Forms::GetFormFromString<RE::BGSPerk>(entryPerk.asString());
 			if (!foundPerk) {
-				logger::warn("  >Failed to resolve {}. Entry will be ignored.", entryPerk.asString());
+				REX::WARN("  >Failed to resolve {}. Entry will be ignored.", entryPerk.asString());
 				return false;
 			}
 			requiredPerks.push_back(foundPerk);
@@ -54,7 +60,7 @@ namespace {
 		const auto player = RE::PlayerCharacter::GetSingleton();
 		assert(player);
 		if (!player) {
-			logger::critical("PLAYER SINGLETON NOT FOUND - YOU WILL LIKELY CRASH!");
+			REX::CRITICAL("PLAYER SINGLETON NOT FOUND - YOU WILL LIKELY CRASH!");
 			return false;
 		}
 
@@ -108,20 +114,20 @@ namespace {
 		const auto frontPointer = a_target->effects.front();
 		const auto frontEffect = frontPointer ? frontPointer->baseEffect : nullptr;
 		if (!frontEffect) {
-			logger::critical("Spell {} has no effects! You WILL crash later.", a_target->GetName());
+			REX::CRITICAL("Spell {} has no effects! You WILL crash later.", a_target->GetName());
 			return;
 		}
 
 		auto* factory = RE::IFormFactory::GetConcreteFormFactoryByType<RE::EffectSetting>();
 		auto newBaseEffect = factory->Create();
 		if (!newBaseEffect) {
-			logger::error("  >Failed to create new base effect.");
+			REX::ERROR("  >Failed to create new base effect.");
 			return;
 		}
 
 		auto newEffect = new RE::Effect();
 		if (!newEffect) {
-			logger::error("  >Failed to create new effect.");
+			REX::ERROR("  >Failed to create new effect.");
 			return;
 		}
 
@@ -157,24 +163,24 @@ namespace {
 		const auto& effect = a_entry["effect"];
 		const auto& description = a_entry["description"];
 		if (!effect || !description) {
-			logger::warn("  >Missing effect and/or description field. Entry will be skipped.");
+			REX::WARN("  >Missing effect and/or description field. Entry will be skipped.");
 			return;
 		}
 		if (!effect.isString() || !description.isString()) {
-			logger::warn("  >Effect and/or description fields are not strings. Entry will be skipped.");
+			REX::WARN("  >Effect and/or description fields are not strings. Entry will be skipped.");
 			return;
 		}
 
 		auto descriptionField = description.asString();
 		const auto effectField = effect.asString();
 		if (descriptionField.empty() || effectField.empty()) {
-			logger::warn("  >Failed to parse description and/or effect/description fields. Entry will be skipped.");
+			REX::WARN("  >Failed to parse description and/or effect/description fields. Entry will be skipped.");
 			return;
 		}
 
 		auto effectForm = Utilities::Forms::GetFormFromString<RE::EffectSetting>(effectField);
 		if (!effectForm) {
-			logger::warn("  >Failed to resolve effect form for {}. Entry will be skipped.", effectField);
+			REX::WARN("  >Failed to resolve effect form for {}. Entry will be skipped.", effectField);
 			return;
 		}
 
@@ -186,30 +192,30 @@ namespace {
 		const auto& spell = a_entry["spell"];
 		const auto& description = a_entry["description"];
 		if (!spell || !description) {
-			logger::warn("  >Missing spell and/or description field! Entry will be skipped.");
+			REX::WARN("  >Missing spell and/or description field! Entry will be skipped.");
 			return;
 		}
 		if (!spell.isString() || !description.isString()) {
-			logger::warn("  >Spell and/or description fields are not strings. Entry will be skipped.");
+			REX::WARN("  >Spell and/or description fields are not strings. Entry will be skipped.");
 			return;
 		}
 
 		auto descriptionField = description.asString();
 		const auto spellField = spell.asString();
 		if (descriptionField.empty() || spellField.empty()) {
-			logger::warn("  >Failed to parse description and/or spell fields. Entry will be skipped.");
+			REX::WARN("  >Failed to parse description and/or spell fields. Entry will be skipped.");
 			return;
 		}
 
 		const auto spellForm = Utilities::Forms::GetFormFromString<RE::SpellItem>(spellField);
 		if (!spellForm) {
-			logger::warn("  >Failed to resolve spell form for {}. Entry will be skipped.", spellField);
+			REX::WARN("  >Failed to resolve spell form for {}. Entry will be skipped.", spellField);
 			return;
 		}
 
 		const auto frontEffect = spellForm->effects.front() && spellForm->effects.front()->baseEffect ? spellForm->effects.front()->baseEffect : nullptr;
 		if (!frontEffect) {
-			logger::warn("  >Spell {} is incorrectly created and will be ignored.", spellField);
+			REX::WARN("  >Spell {} is incorrectly created and will be ignored.", spellField);
 			return;
 		}
 		AppendEffectToSpell(a_entry, spellForm, descriptionField);
@@ -218,7 +224,7 @@ namespace {
 	static void ProcessDynamicEffect(const Json::Value& a_entry, std::vector<Assignment>& a_assignments) {
 		const auto& descriptionField = a_entry["description"];
 		if (!descriptionField || !descriptionField.isString()) {
-			logger::warn("Dynamic Effect definition lacking description field, or description field is not a string. Entry will be skipped.");
+			REX::WARN("Dynamic Effect definition lacking description field, or description field is not a string. Entry will be skipped.");
 			return;
 		}
 
@@ -228,19 +234,19 @@ namespace {
 		const auto& reversedKeywordsField = a_entry["!keywords"];
 		if (keywordsField) {
 			if (!keywordsField.isArray()) {
-				logger::warn("Dynamic Effect definition has perks field, but it is not an array. Entry will be skipped.");
+				REX::WARN("Dynamic Effect definition has perks field, but it is not an array. Entry will be skipped.");
 				return;
 			}
 
 			for (const auto& entry : keywordsField) {
 				if (!entry.isString()) {
-					logger::warn("Invalid keyword (not a string) in perks field. Entry will be skipped.");
+					REX::WARN("Invalid keyword (not a string) in perks field. Entry will be skipped.");
 					return;
 				}
 
 				auto* perk = RE::TESForm::LookupByEditorID<RE::BGSKeyword>(entry.asString());
 				if (!perk) {
-					logger::warn("Failed to resolve {} in perks. Entry will be skipped.", entry.asString());
+					REX::WARN("Failed to resolve {} in perks. Entry will be skipped.", entry.asString());
 					return;
 				}
 				allowedPerks.push_back(perk);
@@ -249,19 +255,19 @@ namespace {
 
 		if (reversedKeywordsField) {
 			if (!reversedKeywordsField.isArray()) {
-				logger::warn("Dynamic Effect definition has !perks field, but it is not an array. Entry will be skipped.");
+				REX::WARN("Dynamic Effect definition has !perks field, but it is not an array. Entry will be skipped.");
 				return;
 			}
 
 			for (const auto& entry : reversedKeywordsField) {
 				if (!entry.isString()) {
-					logger::warn("Invalid keyword (not a string) in !perks field. Entry will be skipped.");
+					REX::WARN("Invalid keyword (not a string) in !perks field. Entry will be skipped.");
 					return;
 				}
 
 				auto* form = RE::TESForm::LookupByEditorID<RE::BGSKeyword>(entry.asString());
 				if (!form) {
-					logger::warn("Failed to resolve {} in !perks. Entry will be skipped.", entry.asString());
+					REX::WARN("Failed to resolve {} in !perks. Entry will be skipped.", entry.asString());
 					return;
 				}
 				disallowedPerks.push_back(form);
@@ -273,7 +279,7 @@ namespace {
 			auto newRule = AssignmentKeywordRule(allowedPerks, false);
 			auto newRuleUnique = std::make_unique<AssignmentKeywordRule>(newRule);
 			if (!newRuleUnique) {
-				logger::critical("Failed unexpectedly while making a unique rule>");
+				REX::CRITICAL("Failed unexpectedly while making a unique rule>");
 				return;
 			}
 			newRules.push_back(std::move(newRuleUnique));
@@ -283,7 +289,7 @@ namespace {
 			auto newRule = AssignmentKeywordRule(disallowedPerks, true);
 			auto newRuleUnique = std::make_unique<AssignmentKeywordRule>(newRule);
 			if (!newRuleUnique) {
-				logger::critical("Failed unexpectedly while making a unique rule>");
+				REX::CRITICAL("Failed unexpectedly while making a unique rule>");
 				return;
 			}
 			newRules.push_back(std::move(newRuleUnique));
@@ -349,11 +355,11 @@ namespace Settings::JSON
 			paths = findJsonFiles();
 		}
 		catch (const std::exception& e) {
-			logger::warn("Caught {} while reading files.", e.what());
+			REX::WARN("Caught {} while reading files.", e.what());
 			return;
 		}
 		if (paths.empty()) {
-			logger::info("No settings found");
+			REX::INFO("No settings found");
 			return;
 		}
 
@@ -367,22 +373,22 @@ namespace Settings::JSON
 				JSONReader.parse(rawJSON, JSONFile);
 			}
 			catch (const Json::Exception& e) {
-				logger::warn("Caught {} while reading files.", e.what());
+				REX::WARN("Caught {} while reading files.", e.what());
 				continue;
 			}
 			catch (const std::exception& e) {
-				logger::error("Caught unhandled exception {} while reading files.", e.what());
+				REX::ERROR("Caught unhandled exception {} while reading files.", e.what());
 				continue;
 			}
 
 			if (!JSONFile.isObject()) {
-				logger::warn("Warning: <{}> is not an object. File will be ignored.", path);
+				REX::WARN("Warning: <{}> is not an object. File will be ignored.", path);
 				continue;
 			}
 
 			const auto& newEffects = JSONFile["newEffects"];
 			if (newEffects && !newEffects.isArray()) {
-				logger::warn("newEffects field is present, but is not an array.");
+				REX::WARN("newEffects field is present, but is not an array.");
 				continue;
 			}
 			else if (newEffects) {
@@ -393,7 +399,7 @@ namespace Settings::JSON
 
 			const auto& newDescriptions = JSONFile["newDescriptions"];
 			if (newDescriptions && !newDescriptions.isArray()) {
-				logger::warn("newDescriptions field is present, but is not an array.");
+				REX::WARN("newDescriptions field is present, but is not an array.");
 				continue;
 			}
 			else if (newDescriptions) {
@@ -405,7 +411,7 @@ namespace Settings::JSON
 			const auto& dynamicEffects = JSONFile["dynamicEffects"];
 			if (dynamicEffects) {
 				if (!dynamicEffects.isArray()) {
-					logger::warn("dynamicEffects field is present, but is not an array.");
+					REX::WARN("dynamicEffects field is present, but is not an array.");
 					continue;
 				}
 				for (const auto& entry : dynamicEffects) {
@@ -417,7 +423,7 @@ namespace Settings::JSON
 		if (!assignments.empty()) {
 			const auto dataHandler = RE::TESDataHandler::GetSingleton();
 			if (!dataHandler) {
-				logger::critical("Failed to get the Data Handler. This will cause a crash later.");
+				REX::CRITICAL("Failed to get the Data Handler. This will cause a crash later.");
 				return;
 			}
 
