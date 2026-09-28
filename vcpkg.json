@@ -1,16 +1,25 @@
 {
-  "name": "replaceme",
-  "version-string": "1.0.0",
-  "description": "Template for SKSE plugin built using my commonlib. MIT License by default.",
-  "homepage": "",
-  "license": "MIT",
+  "name": "dynamic-spell-description",
+  "version-string": "1.1.4",
+  "description": "An SKSE plugin for dynamically changing spell descriptions.",
+  "homepage": "https://github.com/SeaSparrowOG/DynamicSpellDescription",
+  "license": "GPL-3.0",
   "dependencies": [
+    "boost-stl-interfaces",
+    "clib-util",
+    "commonlib-shared",
     "fmt",
-    "rsm-binary-io",
-    "spdlog",
     "jsoncpp",
+    "rsm-binary-io",
     "simpleini",
+    "spdlog",
     "xbyak"
   ],
-  "builtin-baseline": "0cf34c184ce990471435b5b9c92edcf7424930b1"
+  "builtin-baseline": "89dd0f4d241136b843fb55813b2f0fa6448c204d",
+  "overrides": [
+    {
+      "name": "xbyak",
+      "version": "7.23.1"
+    }
+  ]
 }
