@@ -17,7 +17,7 @@ namespace Hooks {
 			REL::Relocation<std::uintptr_t> getProjectileTarget{ REL::ID(34450), 0x53 };
 			REL::Relocation<std::uintptr_t> getImpactDataTarget{ REL::ID(44100), 0x228 };
 
-			auto& trampoline = SKSE::GetTrampoline();
+			auto& trampoline = REL::GetTrampoline();
 
 			if (Settings::INI::INIHolder::GetSingleton()->ShouldInstallProjectilePatch()) {
 				_processProjectile = trampoline.write_call<5>(getProjectileTarget.address(), &ProcessProjectile);

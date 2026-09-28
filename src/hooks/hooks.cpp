@@ -5,7 +5,6 @@
 namespace Hooks {
 	void Install()
 	{
-		SKSE::AllocTrampoline(70);
 		SpellItemDescription::Install();
 	}
 
@@ -46,14 +45,14 @@ namespace Hooks {
 		const auto singleton = SpellItemDescription::GetSingleton();
 		assert(player && singleton);
 		if (!player || !singleton) {
-			logger::error("Failed to get the player or SpellItemDescirptionSingleton. This will likely cause a crash later.");
+			REX::ERROR("Failed to get the player or SpellItemDescirptionSingleton. This will likely cause a crash later.");
 			return;
 		}
 
 		auto* frontEffect = a2->effects.front();
 		auto* frontBaseEffect = frontEffect ? frontEffect->baseEffect : nullptr;
 		if (!frontBaseEffect) {
-			logger::error("Failed to get the front effect of {}.", a2->GetName());
+			REX::ERROR("Failed to get the front effect of {}.", a2->GetName());
 			return;
 		}
 
@@ -138,14 +137,14 @@ namespace Hooks {
 		const auto singleton = SpellItemDescription::GetSingleton();
 		assert(player && singleton);
 		if (!player || !singleton) {
-			logger::error("Failed to get the player or SpellItemDescirptionSingleton. This will likely cause a crash later.");
+			REX::ERROR("Failed to get the player or SpellItemDescirptionSingleton. This will likely cause a crash later.");
 			return;
 		}
 
 		auto* frontEffect = a2->effects.front();
 		auto* frontBaseEffect = frontEffect ? frontEffect->baseEffect : nullptr;
 		if (!frontBaseEffect) {
-			logger::error("Failed to get the front effect of {}.", a2->GetName());
+			REX::ERROR("Failed to get the front effect of {}.", a2->GetName());
 			return;
 		}
 
@@ -180,14 +179,14 @@ namespace Hooks {
 		const auto singleton = SpellItemDescription::GetSingleton();
 		assert(player && singleton);
 		if (!player || !singleton) {
-			logger::error("Failed to get the player or SpellItemDescirptionSingleton. This will likely cause a crash later.");
+			REX::ERROR("Failed to get the player or SpellItemDescirptionSingleton. This will likely cause a crash later.");
 			return;
 		}
 
 		auto* frontEffect = a2->effects.front();
 		auto* frontBaseEffect = frontEffect ? frontEffect->baseEffect : nullptr;
 		if (!frontBaseEffect) {
-			logger::error("Failed to get the front effect of {}.", a2->GetName());
+			REX::ERROR("Failed to get the front effect of {}.", a2->GetName());
 			return;
 		}
 
